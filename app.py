@@ -9,7 +9,6 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_groq import ChatGroq
 from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 import os
@@ -28,10 +27,12 @@ if "cache_cleared" not in st.session_state:
     st.session_state["cache_cleared"] = True
 
 os.environ['HF_TOKEN']=os.getenv("HF_TOKEN")
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-    model_kwargs={"device": "cpu"}
-)
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+def embed(texts):
+    return model.encode(texts)
 
 ## set up Streamlit
 st.title("Conversational RAG With PDF uplaods and chat history")
@@ -69,7 +70,8 @@ if api_key:
     # Split and create embeddings for the documents
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=5000, chunk_overlap=500)
         splits = text_splitter.split_documents(documents)
-        vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
+        vectors = model.encode(text_chunks)
+        vectorstore = FAISS.from_embeddings(vectors, text_chunks)
         retriever = vectorstore.as_retriever()
 
         contextualize_q_system_prompt=(

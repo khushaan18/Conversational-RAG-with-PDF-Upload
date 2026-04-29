@@ -1,0 +1,14 @@
+streamlit
+python-dotenv
+ipykernel
+langchain==0.1.17
+langchain-community
+langchain-core
+langchain-groq
+langchain-huggingface
+sentence-transformers==2.2.2
+transformers==4.36.2
+torch
+langchain-text-splitters
+faiss-cpu
+pypdf

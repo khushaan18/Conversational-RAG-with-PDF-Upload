@@ -13,102 +13,123 @@ load_dotenv()
 
 st.set_page_config(page_title="Multi-PDF Chat", layout="wide")
 
-st.title("📄 Chat with Multiple PDFs")
-st.write("Upload PDFs and ask questions")
+st.title("📄 Chat with Multiple PDFs + Memory")
+st.write("Upload PDFs and chat with history")
 
-# API key
+# Initialize chat history
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "vectorstore" not in st.session_state:
+    st.session_state.vectorstore = None
+
+# API key input
 groq_api_key = st.text_input("Enter Groq API Key", type="password")
 
 if groq_api_key:
 
-    # 🔥 Try your model, fallback if fails
+    # LLM (use stable model; your model may fail)
     try:
         llm = ChatGroq(
             groq_api_key=groq_api_key,
             model_name="openai/gpt-oss-120b"
         )
-        st.success("Using model: openai/gpt-oss-120b")
-    except Exception:
+    except:
         llm = ChatGroq(
             groq_api_key=groq_api_key,
             model_name="llama3-8b-8192"
         )
-        st.warning("Fallback to llama3-8b-8192")
 
-    # Upload multiple PDFs
+    # Upload PDFs
     uploaded_files = st.file_uploader(
         "Upload PDFs",
         type="pdf",
         accept_multiple_files=True
     )
 
-    if uploaded_files:
+    if uploaded_files and st.session_state.vectorstore is None:
 
-        # Build vector DB only once
-        if "vectorstore" not in st.session_state:
+        documents = []
 
-            documents = []
+        for uploaded_file in uploaded_files:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+                tmp.write(uploaded_file.read())
+                temp_path = tmp.name
 
-            for uploaded_file in uploaded_files:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                    tmp.write(uploaded_file.read())
-                    temp_path = tmp.name
+            loader = PyPDFLoader(temp_path)
+            docs = loader.load()
 
-                loader = PyPDFLoader(temp_path)
-                docs = loader.load()
+            for doc in docs:
+                doc.metadata["source"] = uploaded_file.name
 
-                for doc in docs:
-                    doc.metadata["source"] = uploaded_file.name
+            documents.extend(docs)
 
-                documents.extend(docs)
+        # Split
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200
+        )
+        splits = splitter.split_documents(documents)
 
-            # Split text
-            splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200
-            )
-            splits = splitter.split_documents(documents)
+        # Safe embeddings
+        embeddings = FakeEmbeddings(size=384)
 
-            # Lightweight embeddings (no crash)
-            embeddings = FakeEmbeddings(size=384)
+        st.session_state.vectorstore = FAISS.from_documents(
+            splits, embeddings
+        )
 
-            # Create vector DB
-            st.session_state.vectorstore = FAISS.from_documents(
-                splits, embeddings
-            )
+        st.success("Documents processed successfully!")
+
+    # Chat UI
+    query = st.chat_input("Ask something about your PDFs...")
+
+    if query and st.session_state.vectorstore:
 
         retriever = st.session_state.vectorstore.as_retriever()
 
-        # User question
-        query = st.text_input("Ask a question")
+        # Get docs (new API)
+        docs = retriever.invoke(query)
 
-        if query:
-            # ✅ Updated LangChain API
-            docs = retriever.invoke(query)
+        context = "\n\n".join([doc.page_content for doc in docs])
 
-            context = "\n\n".join([doc.page_content for doc in docs])
+        # 🔥 Include chat history in prompt
+        history_text = ""
+        for msg in st.session_state.chat_history:
+            history_text += f"{msg['role']}: {msg['content']}\n"
 
-            prompt = f"""
-            Answer the question using the context below.
-            If the answer is not in the context, say "I don't know".
+        prompt = f"""
+        You are a helpful assistant.
 
-            Context:
-            {context}
+        Chat History:
+        {history_text}
 
-            Question:
-            {query}
-            """
+        Use the context below to answer.
+        If not found, say "I don't know".
 
-            response = llm.invoke(prompt)
+        Context:
+        {context}
 
-            st.subheader("🧠 Answer")
-            st.write(response.content)
+        Question:
+        {query}
+        """
 
-            # Show sources
-            st.subheader("📚 Sources")
-            sources = set([doc.metadata.get("source", "Unknown") for doc in docs])
-            for src in sources:
-                st.write(f"- {src}")
+        response = llm.invoke(prompt)
+
+        # Save history
+        st.session_state.chat_history.append({
+            "role": "user",
+            "content": query
+        })
+
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": response.content
+        })
+
+    # Display chat history
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
 
 else:
     st.warning("Please enter your Groq API Key")

@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
@@ -47,9 +46,9 @@ if groq_api_key:
         splits = splitter.split_documents(docs)
 
         # Embeddings
-        embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        from langchain_community.embeddings import FakeEmbeddings
+
+        embeddings = FakeEmbeddings(size=384)
 
         # Vector DB
         vectorstore = FAISS.from_documents(splits, embeddings)

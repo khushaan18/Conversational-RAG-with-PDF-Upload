@@ -1,6 +1,5 @@
 import streamlit as st
 import tempfile
-import os
 from dotenv import load_dotenv
 
 from langchain_groq import ChatGroq
@@ -15,18 +14,26 @@ load_dotenv()
 st.set_page_config(page_title="Multi-PDF Chat", layout="wide")
 
 st.title("📄 Chat with Multiple PDFs")
-st.write("Upload one or more PDFs and ask questions")
+st.write("Upload PDFs and ask questions")
 
-# Enter Groq API key
+# API key
 groq_api_key = st.text_input("Enter Groq API Key", type="password")
 
 if groq_api_key:
 
-    # LLM (fast + stable)
-    llm = ChatGroq(
-        groq_api_key=groq_api_key,
-        model_name="openai/gpt-oss-120b"
-    )
+    # 🔥 Try your model, fallback if fails
+    try:
+        llm = ChatGroq(
+            groq_api_key=groq_api_key,
+            model_name="openai/gpt-oss-120b"
+        )
+        st.success("Using model: openai/gpt-oss-120b")
+    except Exception:
+        llm = ChatGroq(
+            groq_api_key=groq_api_key,
+            model_name="llama3-8b-8192"
+        )
+        st.warning("Fallback to llama3-8b-8192")
 
     # Upload multiple PDFs
     uploaded_files = st.file_uploader(
@@ -37,7 +44,7 @@ if groq_api_key:
 
     if uploaded_files:
 
-        # Process PDFs only once
+        # Build vector DB only once
         if "vectorstore" not in st.session_state:
 
             documents = []
@@ -50,7 +57,6 @@ if groq_api_key:
                 loader = PyPDFLoader(temp_path)
                 docs = loader.load()
 
-                # Add source info
                 for doc in docs:
                     doc.metadata["source"] = uploaded_file.name
 
@@ -63,7 +69,7 @@ if groq_api_key:
             )
             splits = splitter.split_documents(documents)
 
-            # Lightweight embeddings (Streamlit safe)
+            # Lightweight embeddings (no crash)
             embeddings = FakeEmbeddings(size=384)
 
             # Create vector DB
@@ -73,12 +79,12 @@ if groq_api_key:
 
         retriever = st.session_state.vectorstore.as_retriever()
 
-        # User query
+        # User question
         query = st.text_input("Ask a question")
 
         if query:
-
-            docs = retriever.get_relevant_documents(query)
+            # ✅ Updated LangChain API
+            docs = retriever.invoke(query)
 
             context = "\n\n".join([doc.page_content for doc in docs])
 

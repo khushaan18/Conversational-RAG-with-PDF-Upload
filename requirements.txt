@@ -1,0 +1,11 @@
+streamlit
+python-dotenv
+ipykernel
+langchain==0.1.17
+langchain-community
+langchain-core
+langchain-groq
+langchain-huggingface
+langchain-text-splitters
+faiss-cpu
+pypdf

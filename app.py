@@ -13,7 +13,7 @@ load_dotenv()
 
 st.set_page_config(page_title="Multi-PDF Chat", layout="wide")
 
-st.title("📄 Chat with Multiple PDFs + Memory")
+st.title("Conversational-RAG-with-PDF-Upload")
 st.write("Upload PDFs and chat with history")
 
 # Initialize chat history

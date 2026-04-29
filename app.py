@@ -22,8 +22,10 @@ load_dotenv()
 # os.environ["LANGCHAIN_TRACING_V2"] = "true"
 # os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT")
 
-import shutil
-shutil.rmtree("/home/adminuser/.cache/huggingface", ignore_errors=True)
+if "cache_cleared" not in st.session_state:
+    import shutil
+    shutil.rmtree("/home/adminuser/.cache/huggingface", ignore_errors=True)
+    st.session_state["cache_cleared"] = True
 
 os.environ['HF_TOKEN']=os.getenv("HF_TOKEN")
 embeddings = HuggingFaceEmbeddings(
@@ -108,7 +110,7 @@ if api_key:
         question_answer_chain=create_stuff_documents_chain(llm,qa_prompt)
         rag_chain=create_retrieval_chain(history_aware_retriever,question_answer_chain)
 
-        def get_session_history(session:str)->BaseChatMessageHistory:
+        def get_session_history(session_id:str)->BaseChatMessageHistory:
             if session_id not in st.session_state.store:
                 st.session_state.store[session_id]=ChatMessageHistory()
             return st.session_state.store[session_id]

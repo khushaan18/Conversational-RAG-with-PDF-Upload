@@ -13,7 +13,7 @@ load_dotenv()
 
 st.set_page_config(page_title="PDF Chat", layout="wide")
 
-st.title("📄 Chat with PDF (RAG App)")
+st.title("Conversational-RAG-with-PDF-Upload")
 st.write("Upload a PDF and ask questions")
 
 # API Key

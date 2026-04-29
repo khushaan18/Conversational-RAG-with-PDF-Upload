@@ -1,12 +1,10 @@
 streamlit
 python-dotenv
 
-langchain>=0.2.10
-langchain-community>=0.2.10
-langchain-core>=0.2.25
-langchain-groq>=0.1.5
+langchain
+langchain-community
+langchain-core
+langchain-groq
 
 faiss-cpu
 pypdf
-
-sentence-transformers
